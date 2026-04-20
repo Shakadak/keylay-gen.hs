@@ -1,0 +1,2 @@
+#/usr/bin/env bash
+./dist-newstyle/build/x86_64-linux/ghc-9.12.2/keylay-gen-0.1.0.0/x/keylay-gen/build/keylay-gen/keylay-gen $@
