@@ -3,7 +3,7 @@ module GenAlgo where
 import Control.Monad
 import Data.List
 
-iterPop :: Monad m => Eq val => Show val
+iterPop :: Monad m => Eq val
   => (List val -> m (List val)) -- rank
   -> (val -> val -> m (List val)) -- combine
   -> (List val -> m ()) -- inspect
