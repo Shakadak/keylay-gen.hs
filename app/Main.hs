@@ -70,7 +70,7 @@ mutate str = do
 program :: IO ()
 program = do
   args <- getArgs
-  case parseArgs $ traceWith show $ args of
+  case parseArgs $ traceWith show args of
     Left error' -> putStr error'
     Right cfg -> do
       putStrLn [__i|
