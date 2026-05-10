@@ -26,10 +26,9 @@
 -- target using Levenshtein distance (in 'Main').
 module MapGuide where
 
-import Control.Monad
-import Data.Bifunctor
 import Data.List
 import System.Random
+import qualified Data.Vector as V
 
 -- | The base character map that gets rearranged by swap operations.
 --   26 lowercase letters + 2 padding chars = 30 total.
@@ -45,10 +44,10 @@ data Dominance = MkDominance Int
 
 -- | A chromosome (individual) in the GA population.
 --
--- Encoded as a list of @(position, Dominance)@ pairs. The list has length
+-- Encoded as a vector of @(position, Dominance)@ pairs. The vector has length
 -- @2 * guideSize@ (= 56), interpreted as 28 consecutive pairs of indices.
 -- Each pair @(i, j)@ means "swap characters at position i and j in the map."
-data Guide = MkGuide [(Int, Dominance)]
+data Guide = MkGuide (V.Vector (Int, Dominance))
 
 -- | Number of swap pairs per chromosome (28 pairs = 56 flat elements).
 --   Chosen so the chromosome has enough degrees of freedom to explore
@@ -81,7 +80,7 @@ instance Eq Guide where
 -- into 28 swap pairs by 'pairings'.
 newGuide :: IO Guide
 newGuide =
-  MkGuide <$> Control.Monad.replicateM (2 * guideSize) ((, MkDominance 0) <$> rndIndex guideSize)
+  MkGuide <$> V.replicateM (2 * guideSize) ((, MkDominance 0) <$> rndIndex guideSize)
 
 -- | The base character map: lowercase alphabet + 2 padding characters.
 --   A 'Guide' rearranges this map via its swap pairs to produce a layout.
@@ -106,8 +105,8 @@ kSplits k n xs =
 --
 -- Each pair @(idxA, idxB)@ represents one swap operation to apply to
 -- the base map. The pairs are applied left-to-right in 'solution'.
-pairings :: [a] -> [(a, a)]
-pairings xs = map (\[a, b] -> (a, b)) $ nSplits 2 guideSize xs
+pairings :: V.Vector a -> [(a, a)]
+pairings xs = map (\[a, b] -> (a, b)) $ nSplits 2 guideSize (V.toList xs)
 
 -- | Replace the element at a given index in a list.
 replaceAt :: Int -> a -> [a] -> [a]
@@ -151,7 +150,7 @@ mutate :: Guide -> IO Guide
 mutate (MkGuide xs) = do
   target <- rndIndex (2 * guideSize)  -- Position to mutate in flat list.
   value  <- rndIndex guideSize        -- New random index value.
-  pure $ MkGuide $ replaceAt target (value, MkDominance 1) xs
+  pure $ MkGuide $ xs V.// [(target, (value, MkDominance 1))]
 
 -- | Single-point crossover on two chromosomes.
 --
@@ -161,17 +160,6 @@ mutate (MkGuide xs) = do
 crossover :: Guide -> Guide -> IO (Guide, Guide)
 crossover (MkGuide left) (MkGuide right) = do
   target <- rndIndex (2 * guideSize)  -- Random cut point.
-  pure $ bimap MkGuide MkGuide $ crossoverAt target left right
-
--- | Internal helper: recursively apply crossover at a given depth.
---   When @cut@ reaches 0, the remaining tails are swapped.
-crossoverAt ::
-  Int -> -- ^ Remaining cut depth (counts down to 0).
-  [a] -> -- ^ Left parent chromosome (flat list).
-  [a] -> -- ^ Right parent chromosome (flat list).
-  ([a], [a]) -- ^ Two offspring chromosomes.
-crossoverAt 0 left right = (right, left)  -- Swap tails at cut point.
-crossoverAt cut (l : ls) (r : rs) =
-  let (left, right) = crossoverAt (cut - 1) ls rs
-  in (l : left, r : right)
-crossoverAt _ _ _ = error "Mismatched crossover chromosomes"
+  let (lHead, lTail) = V.splitAt target left
+      (rHead, rTail) = V.splitAt target right
+  pure (MkGuide (lHead V.++ rTail), MkGuide (rHead V.++ lTail))

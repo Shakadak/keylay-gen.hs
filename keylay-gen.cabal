@@ -73,7 +73,9 @@ executable keylay-gen
         random,
         string-interpolate >= 0.3.4 && < 0.4,
         text,
+        text,
         text-metrics,
+        vector,
 
     -- Directories containing source files.
     hs-source-dirs:   app
